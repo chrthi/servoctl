@@ -48,13 +48,11 @@ typedef struct uartcmd {
 #endif
 
 /*
- * mv 0 #move to normal mode
- * mv 1 #move to menmon mode
+ * mv 0 #move to saved point 0
  * pos # print current position
  * stat # print extended status message
  * maint #unlock maintenance mode:
- * save 0 #save normal position
- * save 1 #save menmon position
+ * save 0 #save current position as point 0
  * pwm 922 #set pwm target
  * cal #auto-calibrate full servo range
  */
