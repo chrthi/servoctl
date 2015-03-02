@@ -1,0 +1,8 @@
+.settings/
+.project
+.cproject
+*.o
+*.hex
+*.elf
+*.d
+*.map
