@@ -22,23 +22,19 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include "adc.h"
 
 volatile uint16_t ADC_LastResult;
 volatile uint16_t ADC_LastResult_LP;
 
 void ADC_Init(void) {
 	ADMUX = /*_BV(REFS1) |*/ _BV(REFS0) | 6; //uncomment REFS1 to use 2.56V instead of 5V
-	ADCSRA = _BV(ADEN) | _BV(ADSC) | _BV(ADPS2) | _BV(ADPS1);
+	ADCSRA = _BV(ADEN) | _BV(ADSC) | ADC_PSCBITS;
 	{
 		loop_until_bit_is_clear(ADCSRA, ADSC);
 		ADC_LastResult_LP = ADC_LastResult = ADC;
-		//SRV_setFromADC(ADC);
 	}
-	ADCSRA = _BV(ADEN) | _BV(ADIF) | _BV(ADPS2) | _BV(ADPS1);
-}
-
-void ADC_StartConversion(void) {
-	ADCSRA = _BV(ADEN) | _BV(ADSC) | _BV(ADIE) | _BV(ADPS2) | _BV(ADPS1);
+	ADCSRA = _BV(ADEN) | _BV(ADIF) | ADC_PSCBITS;
 }
 
 uint16_t ADC_GetLastMove(uint16_t ref) {

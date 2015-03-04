@@ -13,6 +13,7 @@ C_DEPS :=
 ASM_DEPS := 
 FLASH_IMAGE := 
 ELFS := 
+LSS := 
 S_DEPS := 
 SIZEDUMMY := 
 S_UPPER_DEPS := 

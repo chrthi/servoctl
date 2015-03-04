@@ -29,6 +29,9 @@ endif
 -include ../makefile.defs
 
 # Add inputs and outputs from these tool invocations to the build variables 
+LSS += \
+bootswitch.lss \
+
 FLASH_IMAGE += \
 bootswitch.hex \
 
@@ -43,8 +46,14 @@ all: bootswitch.elf secondary-outputs
 bootswitch.elf: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: AVR C Linker'
-	avr-gcc -Wl,-Map,bootswitch.map -Xlinker -u -Xlinker vfprintf -mmcu=atmega8a -o "bootswitch.elf" $(OBJS) $(USER_OBJS) $(LIBS)
+	avr-gcc -Wl,-Map,bootswitch.map -Xlinker -u -Xlinker vfprintf -mmcu=atmega16 -o "bootswitch.elf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
+	@echo ' '
+
+bootswitch.lss: bootswitch.elf
+	@echo 'Invoking: AVR Create Extended Listing'
+	-avr-objdump -h -S bootswitch.elf  >"bootswitch.lss"
+	@echo 'Finished building: $@'
 	@echo ' '
 
 bootswitch.hex: bootswitch.elf
@@ -55,16 +64,16 @@ bootswitch.hex: bootswitch.elf
 
 sizedummy: bootswitch.elf
 	@echo 'Invoking: Print Size'
-	-avr-size --format=avr --mcu=atmega8a bootswitch.elf
+	-avr-size --format=avr --mcu=atmega16 bootswitch.elf
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(OBJS)$(C_DEPS)$(ASM_DEPS)$(FLASH_IMAGE)$(ELFS)$(S_DEPS)$(SIZEDUMMY)$(S_UPPER_DEPS) bootswitch.elf
+	-$(RM) $(OBJS)$(C_DEPS)$(ASM_DEPS)$(FLASH_IMAGE)$(ELFS)$(LSS)$(S_DEPS)$(SIZEDUMMY)$(S_UPPER_DEPS) bootswitch.elf
 	-@echo ' '
 
-secondary-outputs: $(FLASH_IMAGE) $(SIZEDUMMY)
+secondary-outputs: $(LSS) $(FLASH_IMAGE) $(SIZEDUMMY)
 
 .PHONY: all clean dependents
 .SECONDARY:

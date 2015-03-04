@@ -23,12 +23,6 @@
 #ifndef SERVO_H_
 #define SERVO_H_
 
-#define SRV_PWR_ON() do {PORTB &=~ _BV(PB0);} while(0)
-#define SRV_PWR_OFF() do {PORTB |= _BV(PB0);} while(0)
-#define SRV_IS_PWR_ON() (PORTB & _BV(PB0))
-#define SRV_PWM_ON() do {TCCR1A |= _BV(COM1A1);} while(0)
-#define SRV_PWM_OFF() do {TCCR1A &=~ _BV(COM1A1);} while(0)
-
 void SRV_Init(void);
 int8_t SRV_SetTarget(uint16_t pwm);
 int8_t SRV_SetTargetIndex(uint8_t index);

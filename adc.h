@@ -26,8 +26,18 @@
 extern volatile uint16_t ADC_LastResult;
 extern volatile uint16_t ADC_LastResult_LP;
 
+#if F_CPU > 200000UL * 64UL
+#define ADC_PSC 128
+#define ADC_PSCBITS 7
+#elif F_CPU > 200000UL * 32UL
+#define ADC_PSC 64
+#define ADC_PSCBITS 6
+#endif
+
 void ADC_Init(void);
-void ADC_StartConversion(void);
+#define ADC_StartConversion(void) do {\
+	ADCSRA = _BV(ADEN) | _BV(ADSC) | _BV(ADIE) | ADC_PSCBITS;\
+	} while(0);
 uint16_t ADC_GetLastMove(uint16_t ref);
 
 #endif /* ADC_H_ */

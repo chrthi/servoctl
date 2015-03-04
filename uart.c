@@ -28,11 +28,8 @@
 #include "servo.h"
 #include "adc.h"
 
-#ifndef F_CPU
-	#define F_CPU 7372800UL
-#endif
 #define BAUDRATE 115200UL
-#define UBRR_val (F_CPU / (16UL * BAUDRATE) - 1UL)
+#define UBRR_val ((F_CPU + (4UL * BAUDRATE)) / (8UL * BAUDRATE) - 1UL)
 #define CASE_INSENSITIVE_CMDS
 #define LEN(a) (sizeof(a)/sizeof(*a))
 
@@ -42,10 +39,6 @@ typedef struct uartcmd {
 	uint8_t cmdlen;
 	PGM_P cmd;
 } uartcmd_t;
-
-#ifndef NULL
-#define NULL ((void*)0)
-#endif
 
 /*
  * mv 0 #move to saved point 0
@@ -82,14 +75,13 @@ static uartcmd_t uartcmds[] = {
 };
 
 #define uartprintf_P(fmt, ...) do { \
-		loop_until_bit_is_clear(UCSRB, UDRIE); \
 		sprintf_P(uart_txbuf, fmt, __VA_ARGS__); \
 		uart_txpos = uart_txbuf; \
 		UCSRB |= _BV(UDRIE); \
 	} while(0)
+//loop_until_bit_is_clear(UCSRB, UDRIE); \
 
 #define uartputs_P(fmt) do { \
-		loop_until_bit_is_clear(UCSRB, UDRIE); \
 		strcpy_P(uart_txbuf, fmt); \
 		uart_txpos = uart_txbuf; \
 		UCSRB |= _BV(UDRIE); \
@@ -134,7 +126,7 @@ UART_CMD_FUNC(pos) {
 }
 
 UART_CMD_FUNC(stat) {
-	uartprintf_P(PSTR("PWM=%u, ADC=%u\n"), (unsigned int)SRV_GetTarget(), (unsigned int)ADC_LastResult);
+	uartprintf_P(PSTR("PWM=%u, ADC=%u\n"), OCR1A /*(unsigned int)SRV_GetTarget()*/, (unsigned int)ADC_LastResult);
 }
 
 UART_CMD_FUNC(maint) {
@@ -156,8 +148,11 @@ UART_CMD_FUNC(pwm) {
 	uint16_t pwm=0;
 	uint8_t numDigits=0;
 	const char *p=args;
-	while(*p >= '0' && *p <= '9' && numDigits<5)
+	while(*p >= '0' && *p <= '9' && numDigits<5) {
 		pwm = pwm*10 + (*p-'0');
+		++p;
+		++numDigits;
+	}
 	if(numDigits == 0) return;
 	if(SRV_SetTarget(pwm)) uartputs_P(PSTR("ok\n"));
 	else uartputs_P(PSTR("moving...\n"));
@@ -178,6 +173,7 @@ void UART_Init(void) {
 		uartcmds[i].cmdlen = strlen_P(uartcmds[i].cmd);
 	}
 
+	UCSRA = _BV(U2X);
 	UCSRB = _BV(RXCIE) | _BV(RXEN) | _BV(TXEN);
 	UCSRC = _BV(URSEL) | _BV(UCSZ1) | _BV(UCSZ0);
 	UBRRH = UBRR_val >> 8;
@@ -191,14 +187,17 @@ void UART_ReportDone(void) {
 void UART_ReportProgress(uint16_t pwm, uint16_t adc) {
 	uint8_t c;
 	char *p=uart_txbuf;
-	loop_until_bit_is_clear(UCSRB, UDRIE);
-	c = pwm >> 8;       *p++ = '0'+c;
-	c = pwm >> 4 & 0xf; *p++ = (c<10) ? '0'+c : 'a'+c;
-	c = pwm      & 0xf; *p++ = (c<10) ? '0'+c : 'a'+c;
+	//loop_until_bit_is_clear(UCSRB, UDRIE);
+	c = pwm >>12;       *p++ = '0'+c;
+	c = pwm >> 8 & 0xf; *p++ = (c<10) ? '0'+c : 'a'-10+c;
+	c = pwm >> 4 & 0xf; *p++ = (c<10) ? '0'+c : 'a'-10+c;
+	c = pwm      & 0xf; *p++ = (c<10) ? '0'+c : 'a'-10+c;
+	*p++=';';
 	c = adc >> 8;       *p++ = '0'+c;
-	c = adc >> 4 & 0xf; *p++ = (c<10) ? '0'+c : 'a'+c;
-	c = adc      & 0xf; *p++ = (c<10) ? '0'+c : 'a'+c;
-	*p = '\n';
+	c = adc >> 4 & 0xf; *p++ = (c<10) ? '0'+c : 'a'-10+c;
+	c = adc      & 0xf; *p++ = (c<10) ? '0'+c : 'a'-10+c;
+	*p++ = '\n';
+	*p = '\0';
 	uart_txpos = uart_txbuf;
 	UCSRB |= _BV(UDRIE);
 }
@@ -206,8 +205,8 @@ void UART_ReportProgress(uint16_t pwm, uint16_t adc) {
 ISR(USART_RXC_vect) {
 	static char *rxpos = uart_rxbuf;
 	register char c = UDR;
-	if(c=='\r') return;
-	if(c == '\n') {
+	if(c == '\n' || c == '\r') {
+		if(rxpos==uart_rxbuf) return;
 		if(rxpos) {
 			*rxpos = '\0';
 			for(uint8_t i=0; i<LEN(uartcmds); ++i) {

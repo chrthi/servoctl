@@ -28,6 +28,14 @@
 #include "servo.h"
 
 int main(void) {
+#ifdef __AVR_ATmega16__
+	PORTA = 0xff;
+	PORTB = 0xff;
+	PORTC = 0xff;
+	PORTD = 0xdc;
+	DDRD = _BV(DDD1) | _BV(DDD5);
+	DDRB = _BV(DDB0);
+#else
 	// I/O ports
 	DDRB = _BV(PB1) | _BV(PB4);
 	PORTB = _BV(PB2) | _BV(4) | _BV(6) | _BV(7);
@@ -35,6 +43,7 @@ int main(void) {
 	PORTC = 0xff;
 	DDRD = _BV(1);
 	PORTD = _BV(1) | _BV(2) | _BV(3) | _BV(4) | _BV(5) | _BV(6) | _BV(7);
+#endif
 
 	UART_Init();
 	ADC_Init();
@@ -44,8 +53,10 @@ int main(void) {
 	MCUCR = 0;
 
 	sei();
+	UART_ReportDone();
+
 	while(1) {
-		sleep_enable();
-		sleep_cpu();
+		//sleep_enable();
+		//sleep_cpu();
 	}
 }
