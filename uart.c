@@ -61,8 +61,11 @@ UART_CMD_DECL(pos);
 UART_CMD_DECL(stat);
 UART_CMD_DECL(maint);
 UART_CMD_DECL(save);
+UART_CMD_DECL(clear);
 UART_CMD_DECL(pwm);
 UART_CMD_DECL(cal);
+
+#define CMD_INDEX_MAINT 3
 
 static uartcmd_t uartcmds[] = {
 		UART_CMD_ENTRY(mv),
@@ -70,6 +73,7 @@ static uartcmd_t uartcmds[] = {
 		UART_CMD_ENTRY(stat),
 		UART_CMD_ENTRY(maint),
 		UART_CMD_ENTRY(save),
+		UART_CMD_ENTRY(clear),
 		UART_CMD_ENTRY(pwm),
 		UART_CMD_ENTRY(cal)
 };
@@ -79,7 +83,7 @@ static uartcmd_t uartcmds[] = {
 		uart_txpos = uart_txbuf; \
 		UCSRB |= _BV(UDRIE); \
 	} while(0)
-//loop_until_bit_is_clear(UCSRB, UDRIE); \
+//loop_until_bit_is_clear(UCSRB, UDRIE);
 
 #define uartputs_P(fmt) do { \
 		strcpy_P(uart_txbuf, fmt); \
@@ -142,6 +146,11 @@ UART_CMD_FUNC(maint) {
 UART_CMD_FUNC(save) {
 	if(args[1] != '\0' || args[0] < '0' || args[0] > '9') return;
 	if(!SRV_SavePos(args[0]-'0')) uartputs_P(PSTR("ok\n"));
+}
+
+UART_CMD_FUNC(clear) {
+	SRV_Clear();
+	uartputs_P(PSTR("ok\n"));
 }
 
 UART_CMD_FUNC(pwm) {
@@ -216,7 +225,8 @@ ISR(USART_RXC_vect) {
 #else
 				uart_rxbuf[0] == uartcmds[i].firstchar && !strncmp_P(uart_rxbuf, uartcmds[i].cmd, uartcmds[i].cmdlen)
 #endif
-				&& (!uart_rxbuf[uartcmds[i].cmdlen] || isspace(uart_rxbuf[uartcmds[i].cmdlen]))) {
+				&& (!uart_rxbuf[uartcmds[i].cmdlen] || isspace(uart_rxbuf[uartcmds[i].cmdlen]))
+				&& (i<=CMD_INDEX_MAINT || state.isMaintMode)) {
 					char *c=uart_rxbuf+uartcmds[i].cmdlen;
 					while(isspace(*c)) ++c;
 					if(!*c) c = NULL;

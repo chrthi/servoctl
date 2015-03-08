@@ -42,7 +42,7 @@
 #define SRV_PWR_OFF() do {SRV_PWR_PORT |= _BV(SRV_PWR_P);} while(0)
 #define SRV_IS_PWR_ON() (!(PORTB & _BV(PB0)))
 #define SRV_PWM_ON() do {TCCR1A |= _BV(COM1A1);} while(0)
-#define SRV_PWM_OFF() do {TCCR1A &=~ _BV(COM1A1);} while(0)
+#define SRV_PWM_OFF() do {TCCR1A |= _BV(COM1A1);} while(0)
 
 volatile static uint16_t pwm_target;
 volatile static uint16_t pwm_current;
@@ -103,16 +103,30 @@ static int8_t SRV_calcFromADC(uint16_t adcval, volatile uint16_t *target, volati
 			mindiffGE=adc_vals[i]-adcval;
 		}
 	}
-	///@todo: Handle values outside the min/max points
-	if(iLE==255 || iGE==255 || iLE==iGE) return -1;
-	if(target)
-		*target = mindiffLE<mindiffGE ? pwm_targets[iLE] : pwm_targets[iGE];
-	if(current) {
-		uint16_t adcdiff = (iGE==iLE) ? 1 : adc_vals[iGE]-adc_vals[iLE];
-		*current = pwm_targets[iLE]+
-				(((int32_t)pwm_targets[iGE]-pwm_targets[iLE])
-						*(int32_t)mindiffLE + ((adcdiff+1)>>1))
-				/ adcdiff;
+
+	//handle corner cases:
+	//No points are defined
+	if(iLE==255 && iGE==255) return -1;
+	else if(iLE==255 || iLE==iGE) {
+		//We are left of all points, clamp to lowest
+		//Or we've exactly hit a point, so just use that.
+		if(target) *target=pwm_targets[iGE];
+		if(current) *current=pwm_targets[iGE];
+	} else if(iGE==255) {
+		//We are right of all points, clamp to highest
+		if(target) *target=pwm_targets[iLE];
+		if(current) *current=pwm_targets[iLE];
+	} else {
+		//We are between two defined points. Interpolate linearly.
+		if(target)
+			*target = mindiffLE<mindiffGE ? pwm_targets[iLE] : pwm_targets[iGE];
+		if(current) {
+			uint16_t adcdiff = adc_vals[iGE]-adc_vals[iLE];
+			*current = pwm_targets[iLE]+
+					(((int32_t)pwm_targets[iGE]-pwm_targets[iLE])
+							*(int32_t)mindiffLE + (int32_t)((adcdiff+1)>>1))
+					/ adcdiff;
+		}
 	}
 	return 0;
 }
@@ -146,6 +160,15 @@ int8_t SRV_SavePos(uint8_t index) {
 	eeprom_write_word(&pwm_targets_ee[index], PWM_TO_OCR(pwm_targets[index] = pwm_current));
 	eeprom_write_word(&adc_vals_ee[index], adc_vals[index] = ADC_LastResult);
 	return 0;
+}
+
+void SRV_Clear(void) {
+	for(int i=0; i<SRV_NUM_POSITIONS; ++i) {
+		pwm_targets[i] = 0xffff;
+		adc_vals[i] = 0xffff;
+	}
+	eeprom_write_block(pwm_targets, &pwm_targets_ee[0], sizeof(pwm_targets));
+	eeprom_write_block(adc_vals, &adc_vals_ee[0], sizeof(adc_vals));
 }
 
 uint8_t SRV_GetCurrentIndex(void) {

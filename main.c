@@ -29,7 +29,7 @@
 
 int main(void) {
 #ifdef __AVR_ATmega16__
-	PORTA = 0xff;
+	PORTA = 0xbf;
 	PORTB = 0xff;
 	PORTC = 0xff;
 	PORTD = 0xdc;

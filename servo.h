@@ -28,6 +28,7 @@ int8_t SRV_SetTarget(uint16_t pwm);
 int8_t SRV_SetTargetIndex(uint8_t index);
 uint16_t SRV_GetTarget(void);
 int8_t SRV_SavePos(uint8_t index);
+void SRV_Clear(void);
 
 #define SRV_STATE_MOVING 254
 #define SRV_STATE_CUSTOM 255
