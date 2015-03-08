@@ -42,7 +42,7 @@
 #define SRV_PWR_OFF() do {SRV_PWR_PORT |= _BV(SRV_PWR_P);} while(0)
 #define SRV_IS_PWR_ON() (!(PORTB & _BV(PB0)))
 #define SRV_PWM_ON() do {TCCR1A |= _BV(COM1A1);} while(0)
-#define SRV_PWM_OFF() do {TCCR1A |= _BV(COM1A1);} while(0)
+#define SRV_PWM_OFF() do {TCCR1A &=~ _BV(COM1A1);} while(0)
 
 volatile static uint16_t pwm_target;
 volatile static uint16_t pwm_current;
@@ -183,17 +183,17 @@ ISR(TIMER1_COMPA_vect) {
 	const uint16_t target = pwm_target;
 	uint16_t current = pwm_current;
 	static uint16_t final_adc_position=0xffff;
-	static uint8_t count=PWM_FREQ;
+	static uint8_t count=PWM_FREQ-1;
 	if(current == target) {
 
 		if(count<PWM_FREQ-1) {
 			UART_ReportProgress(PWM_TO_OCR(current), ADC_LastResult);
 			/* This happens when the PWM is already the target value, but the
-			 * servo is still busy moving to that point. */
+			 * servo is still busy moving to that point.
 			if(ADC_GetLastMove(0xffff)<3) {
-				/* Servo is done moving */
+				// Servo is done moving
 				count = PWM_FREQ-1;
-			}
+			} */
 		}
 
 		switch(count) {
@@ -203,7 +203,7 @@ ISR(TIMER1_COMPA_vect) {
 			SRV_PWM_OFF();
 			SRV_PWR_OFF();
 			final_adc_position=ADC_LastResult;
-			//UART_ReportDone();
+			UART_ReportDone();
 			break;
 		case 2*PWM_FREQ-1:
 			/* Near the end of the continuous loop. Check the servo position.
@@ -213,7 +213,7 @@ ISR(TIMER1_COMPA_vect) {
 		case 2*PWM_FREQ:
 			/* End of the continuous loop. Check whether the servo has moved. */
 			count = PWM_FREQ;
-			if(final_adc_position!=0xffff && ADC_GetLastMove(final_adc_position)>10 && 0) {
+			if(final_adc_position!=0xffff && ADC_GetLastMove(final_adc_position)>20) {
 				/*The servo has moved while powered off.
 				 * We set the current PWM according to the measured position
 				 * so it will be moved back in a controlled way.
